@@ -4,6 +4,7 @@ import { useAuth } from "../../context/AuthContext";
 import { Loader, EmptyState, Badge } from "../../components/ui/index";
 import EjerciciosPanel from "./EjerciciosPanel";
 import Logo from "../../components/Logo";
+import PDFViewer from "../../components/PDFViewer";
 
 const TODAY = new Date().toISOString().split("T")[0];
 
@@ -70,6 +71,7 @@ export default function AlumnoDashboard() {
   const [downloading, setDownloading] = useState(false);
   const [registrando, setRegistrando] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState(null);
+  const [pdfUrl, setPdfUrl] = useState(null);
 
   useEffect(() => { fetchData(); }, []);
 
@@ -106,16 +108,7 @@ export default function AlumnoDashboard() {
     const { data } = await supabase.storage
       .from("routines")
       .createSignedUrl(rutina.file_url, 3600);
-    if (data?.signedUrl) {
-      // En PWA standalone window.open no funciona — usamos un <a> temporal
-      const a = document.createElement("a");
-      a.href = data.signedUrl;
-      a.target = "_blank";
-      a.rel = "noopener noreferrer";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    }
+    if (data?.signedUrl) setPdfUrl(data.signedUrl);
     setDownloading(false);
   };
 
@@ -329,6 +322,8 @@ export default function AlumnoDashboard() {
           </>
         )}
       </main>
+      {/* PDF Viewer */}
+      {pdfUrl && <PDFViewer url={pdfUrl} onClose={() => setPdfUrl(null)} />}
     </div>
   );
 }

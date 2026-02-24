@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
 
-// En dev: Vite proxy redirige /wger → https://wger.de
-// En producción: cambiar BASE_URL a https://wger.de
-const BASE_URL = "/wger";
+// Dev: proxy de Vite → /wger
+// Prod: Vercel serverless function → /api/exercises
+const IS_DEV = import.meta.env.DEV;
 const LIMIT = 20;
 
 // Categorías de wger con sus IDs reales
@@ -35,8 +35,14 @@ export default function EjerciciosPanel() {
       offset,
     });
     if (group.categoryId) params.set("category", group.categoryId);
-    // exerciseinfo devuelve nombre, músculos y equipo en un solo endpoint
-    return `${BASE_URL}/api/v2/exerciseinfo/?${params.toString()}`;
+
+    if (IS_DEV) {
+      // Vite proxy → wger.de
+      return `/wger/api/v2/exerciseinfo/?${params.toString()}`;
+    } else {
+      // Vercel serverless function
+      return `/api/exercises?${params.toString()}`;
+    }
   }, []);
 
   const fetchExercises = useCallback(async (group, append = false) => {
@@ -79,16 +85,30 @@ export default function EjerciciosPanel() {
         setExercises(results);
       }
 
-      // wger devuelve URL completa del siguiente page, la adaptamos al proxy
+      // Adaptar URL del siguiente page según entorno
       if (json.next) {
-        const adapted = json.next.replace("https://wger.de", BASE_URL);
-        setNextUrl(adapted);
+        if (IS_DEV) {
+          setNextUrl(json.next.replace("https://wger.de", "/wger"));
+        } else {
+          // Extraer params y construir URL para la serverless function
+          const nextParams = new URL(json.next).search;
+          setNextUrl(`/api/exercises${nextParams}&format=json`);
+        }
       } else {
         setNextUrl(null);
       }
     } catch (err) {
-      setError("No se pudo conectar con el servidor de ejercicios.");
       console.error("[EjerciciosPanel]", err);
+      // Fallback a lista offline
+      const offline = FALLBACK_EXERCISES.filter(
+        (e) => !muscleGroup.categoryId || e.categoryId === muscleGroup.categoryId
+      );
+      if (append) {
+        setExercises((prev) => [...prev, ...offline]);
+      } else {
+        setExercises(offline);
+      }
+      setNextUrl(null);
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -296,3 +316,21 @@ function ExerciseCard({ exercise, isOpen, onToggle }) {
     </div>
   );
 }
+
+// Lista offline por si la API no responde
+const FALLBACK_EXERCISES = [
+  { uuid: "f1", name: "Press de banca", category: { name: "Pecho" }, categoryId: 11, muscles: [{name_en:"Pectorals"}], muscles_secondary: [{name_en:"Triceps"}], equipment: [{name:"Barbell"}], translations: [{language:6, name:"Press de banca", description:"Acostado en el banco, bajá la barra al pecho y empujá hacia arriba. Mantené los pies en el suelo y los glúteos en el banco."}] },
+  { uuid: "f2", name: "Flexiones", category: { name: "Pecho" }, categoryId: 11, muscles: [{name_en:"Pectorals"}], muscles_secondary: [{name_en:"Triceps"}], equipment: [{name:"Sin equipo"}], translations: [{language:6, name:"Flexiones", description:"En posición de plancha con manos al ancho de hombros, bajá el pecho al suelo y empujá hacia arriba manteniendo el cuerpo recto."}] },
+  { uuid: "f3", name: "Dominadas", category: { name: "Espalda" }, categoryId: 12, muscles: [{name_en:"Lats"}], muscles_secondary: [{name_en:"Biceps"}], equipment: [{name:"Barra"}], translations: [{language:6, name:"Dominadas", description:"Colgado de la barra con agarre prono, empujá los codos hacia abajo para subir el mentón por encima de la barra."}] },
+  { uuid: "f4", name: "Remo con barra", category: { name: "Espalda" }, categoryId: 12, muscles: [{name_en:"Lats"}], muscles_secondary: [{name_en:"Biceps"}], equipment: [{name:"Barra"}], translations: [{language:6, name:"Remo con barra", description:"Con torso inclinado a 45°, jalá la barra hacia el abdomen manteniendo la espalda recta y los codos pegados al cuerpo."}] },
+  { uuid: "f5", name: "Peso muerto", category: { name: "Espalda" }, categoryId: 12, muscles: [{name_en:"Erector spinae"}], muscles_secondary: [{name_en:"Glutes"}], equipment: [{name:"Barra"}], translations: [{language:6, name:"Peso muerto", description:"Con la barra en el suelo, agachate manteniendo la espalda neutra y levantá extendiendo caderas y rodillas simultáneamente."}] },
+  { uuid: "f6", name: "Press militar", category: { name: "Hombros" }, categoryId: 13, muscles: [{name_en:"Deltoids"}], muscles_secondary: [{name_en:"Triceps"}], equipment: [{name:"Barra"}], translations: [{language:6, name:"Press militar", description:"De pie, empujá la barra desde los hombros hacia arriba hasta extender los brazos. Mantené el núcleo activado."}] },
+  { uuid: "f7", name: "Elevaciones laterales", category: { name: "Hombros" }, categoryId: 13, muscles: [{name_en:"Deltoids"}], muscles_secondary: [], equipment: [{name:"Mancuernas"}], translations: [{language:6, name:"Elevaciones laterales", description:"De pie con mancuernas a los lados, eleválas hasta la altura de los hombros con los codos levemente doblados."}] },
+  { uuid: "f8", name: "Curl de bíceps", category: { name: "Brazos" }, categoryId: 8, muscles: [{name_en:"Biceps"}], muscles_secondary: [], equipment: [{name:"Mancuernas"}], translations: [{language:6, name:"Curl de bíceps", description:"De pie con mancuernas, flexioná los codos llevando el peso hacia los hombros. Mantené los codos pegados al cuerpo."}] },
+  { uuid: "f9", name: "Extensión de tríceps", category: { name: "Brazos" }, categoryId: 8, muscles: [{name_en:"Triceps"}], muscles_secondary: [], equipment: [{name:"Mancuerna"}], translations: [{language:6, name:"Extensión de tríceps", description:"Con mancuerna sobre la cabeza, flexioná y extendé el codo manteniendo el brazo vertical y el codo apuntando al techo."}] },
+  { uuid: "f10", name: "Sentadilla", category: { name: "Piernas" }, categoryId: 10, muscles: [{name_en:"Quadriceps"}], muscles_secondary: [{name_en:"Glutes"}], equipment: [{name:"Barra"}], translations: [{language:6, name:"Sentadilla", description:"Con pies al ancho de hombros, bajá doblando rodillas y caderas hasta que los muslos queden paralelos al suelo. Espalda recta siempre."}] },
+  { uuid: "f11", name: "Estocadas", category: { name: "Piernas" }, categoryId: 10, muscles: [{name_en:"Quadriceps"}], muscles_secondary: [{name_en:"Glutes"}], equipment: [{name:"Sin equipo"}], translations: [{language:6, name:"Estocadas", description:"Da un paso largo hacia adelante, bajá la rodilla trasera casi al suelo y volvé a la posición inicial. Alternando piernas."}] },
+  { uuid: "f12", name: "Plancha", category: { name: "Abdomen" }, categoryId: 10, muscles: [{name_en:"Abs"}], muscles_secondary: [{name_en:"Glutes"}], equipment: [{name:"Sin equipo"}], translations: [{language:6, name:"Plancha", description:"Apoyado en antebrazos y pies, mantené el cuerpo recto como una tabla. No dejés caer las caderas ni subas los glúteos."}] },
+  { uuid: "f13", name: "Crunchs", category: { name: "Abdomen" }, categoryId: 10, muscles: [{name_en:"Abs"}], muscles_secondary: [], equipment: [{name:"Sin equipo"}], translations: [{language:6, name:"Crunchs", description:"Acostado boca arriba con rodillas dobladas, contraé el abdomen elevando los hombros del suelo. Bajada controlada."}] },
+  { uuid: "f14", name: "Elevación de gemelos", category: { name: "Pantorrillas" }, categoryId: 14, muscles: [{name_en:"Calves"}], muscles_secondary: [], equipment: [{name:"Sin equipo"}], translations: [{language:6, name:"Elevación de gemelos", description:"De pie, eleváte sobre las puntas de los pies lentamente y bajá de forma controlada. Podés hacerlo con o sin peso."}] },
+];
