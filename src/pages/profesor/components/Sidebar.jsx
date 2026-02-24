@@ -76,7 +76,7 @@ export default function Sidebar({ section, setSection, mobileOpen, setMobileOpen
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
       {/* Logo */}
-      <div className="px-4 py-5 border-b border-zinc-800 mb-3">
+      <div className="px-4 border-b border-zinc-800 mb-3" style={{paddingTop: "max(20px, env(safe-area-inset-top))", paddingBottom: "20px"}}>
         <Logo variant="full" />
       </div>
 

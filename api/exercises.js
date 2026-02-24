@@ -1,11 +1,14 @@
-// Vercel Serverless Function — actúa como proxy para wger.de
-// Evita CORS en producción sin exponer la API al cliente
 export default async function handler(req, res) {
-  // Permitir CORS desde nuestro dominio
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET");
+  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
 
-  const params = new URLSearchParams(req.query);
+  if (req.method === "OPTIONS") return res.status(200).end();
+
+  // Construir params para wger
+  const { offset = 0, limit = 20, category, format = "json" } = req.query;
+  const params = new URLSearchParams({ format, limit, offset });
+  if (category) params.set("category", category);
+
   const url = `https://wger.de/api/v2/exerciseinfo/?${params.toString()}`;
 
   try {
@@ -17,12 +20,15 @@ export default async function handler(req, res) {
     });
 
     if (!response.ok) {
-      return res.status(response.status).json({ error: "Error al conectar con wger" });
+      return res.status(response.status).json({ error: `wger respondió ${response.status}` });
     }
 
     const data = await response.json();
+    // Cache 10 minutos para no sobrecargar wger
+    res.setHeader("Cache-Control", "s-maxage=600, stale-while-revalidate");
     res.status(200).json(data);
   } catch (err) {
+    console.error("[exercises proxy]", err);
     res.status(500).json({ error: err.message });
   }
 }

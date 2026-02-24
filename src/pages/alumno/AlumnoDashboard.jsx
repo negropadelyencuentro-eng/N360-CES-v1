@@ -106,7 +106,16 @@ export default function AlumnoDashboard() {
     const { data } = await supabase.storage
       .from("routines")
       .createSignedUrl(rutina.file_url, 3600);
-    if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+    if (data?.signedUrl) {
+      // En PWA standalone window.open no funciona — usamos un <a> temporal
+      const a = document.createElement("a");
+      a.href = data.signedUrl;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
     setDownloading(false);
   };
 
