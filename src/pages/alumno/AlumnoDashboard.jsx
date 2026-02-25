@@ -4,6 +4,7 @@ import { useAuth } from "../../context/AuthContext";
 import { Loader, EmptyState, Badge } from "../../components/ui/index";
 import EjerciciosPanel from "./EjerciciosPanel";
 import Logo from "../../components/Logo";
+import { usePushNotifications } from "../../hooks/usePushNotifications";
 import PDFViewer from "../../components/PDFViewer";
 
 const TODAY = new Date().toISOString().split("T")[0];
@@ -72,6 +73,7 @@ export default function AlumnoDashboard() {
   const [registrando, setRegistrando] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState(null);
   const [pdfUrl, setPdfUrl] = useState(null);
+  const { permission, subscribed, requestAndSubscribe } = usePushNotifications();
 
   useEffect(() => { fetchData(); }, []);
 
@@ -195,6 +197,23 @@ export default function AlumnoDashboard() {
                 <CuotaBadge status={user.cuota_status} />
               </div>
             </div>
+
+            {/* Banner notificaciones push */}
+            {permission !== "granted" && (
+              <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-4 flex items-center gap-3 animate-fade-in">
+                <span className="text-2xl flex-shrink-0">🔔</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-white">Activar notificaciones</p>
+                  <p className="text-xs text-zinc-500 mt-0.5">Recibí avisos cuando tu profesor te suba una rutina o cuando venza tu cuota.</p>
+                </div>
+                <button
+                  onClick={requestAndSubscribe}
+                  className="btn-primary text-xs px-3 py-2 flex-shrink-0"
+                >
+                  Activar
+                </button>
+              </div>
+            )}
 
             {/* Asistencia hoy */}
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 animate-fade-in">

@@ -45,3 +45,31 @@ self.addEventListener("fetch", (e) => {
     })
   );
 });
+
+// ── Push notifications ──
+self.addEventListener("push", (e) => {
+  if (!e.data) return;
+  const { title, body, url = "/" } = e.data.json();
+  e.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      icon: "/icon-192.png",
+      badge: "/favicon-white.png",
+      data: { url },
+      vibrate: [200, 100, 200],
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const url = e.notification.data?.url || "/";
+  e.waitUntil(
+    clients.matchAll({ type: "window" }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url === url && "focus" in client) return client.focus();
+      }
+      if (clients.openWindow) return clients.openWindow(url);
+    })
+  );
+});
