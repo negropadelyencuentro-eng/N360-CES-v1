@@ -5,7 +5,8 @@ import { Loader, EmptyState, Badge } from "../../components/ui/index";
 import EjerciciosPanel from "./EjerciciosPanel";
 import Logo from "../../components/Logo";
 import { usePushNotifications } from "../../hooks/usePushNotifications";
-import PDFViewer from "../../components/PDFViewer";
+import { lazy, Suspense } from "react";
+const PDFViewer = lazy(() => import("../../components/PDFViewer"));
 
 const TODAY = new Date().toISOString().split("T")[0];
 
@@ -73,7 +74,7 @@ export default function AlumnoDashboard() {
   const [registrando, setRegistrando] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState(null);
   const [pdfUrl, setPdfUrl] = useState(null);
-  const { permission, subscribed, requestAndSubscribe } = usePushNotifications();
+  const { permission, subscribed, requestAndSubscribe, supported } = usePushNotifications();
 
   useEffect(() => { fetchData(); }, []);
 
@@ -199,7 +200,7 @@ export default function AlumnoDashboard() {
             </div>
 
             {/* Banner notificaciones push */}
-            {permission !== "granted" && (
+            {supported && permission !== "granted" && (
               <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-4 flex items-center gap-3 animate-fade-in">
                 <span className="text-2xl flex-shrink-0">🔔</span>
                 <div className="flex-1 min-w-0">
@@ -342,7 +343,11 @@ export default function AlumnoDashboard() {
         )}
       </main>
       {/* PDF Viewer */}
-      {pdfUrl && <PDFViewer url={pdfUrl} onClose={() => setPdfUrl(null)} />}
+      {pdfUrl && (
+        <Suspense fallback={<div className="fixed inset-0 bg-black flex items-center justify-center"><div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" /></div>}>
+          <PDFViewer url={pdfUrl} onClose={() => setPdfUrl(null)} />
+        </Suspense>
+      )}
     </div>
   );
 }

@@ -1,7 +1,6 @@
 import { useState, useCallback } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
-import "react-pdf/dist/Page/AnnotationLayer.css";
-import "react-pdf/dist/Page/TextLayer.css";
+
 
 // Worker de pdfjs — usar CDN para no agregar peso al bundle
 pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
@@ -84,7 +83,9 @@ export default function PDFViewer({ url, onClose }) {
           onLoadSuccess={onDocumentLoadSuccess}
           onLoadError={onDocumentLoadError}
           loading=""
+          error=""
           className="w-full"
+          externalLinkTarget="_blank"
         >
           {Array.from({ length: numPages || 0 }, (_, i) => (
             <Page
