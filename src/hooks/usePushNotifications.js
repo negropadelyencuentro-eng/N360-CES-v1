@@ -4,55 +4,64 @@ import { useAuth } from "../context/AuthContext";
 
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY;
 
+// Chequeos seguros para SSR y browsers sin soporte
+const supportsNotifications = typeof window !== "undefined" && "Notification" in window;
+const supportsPush = typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window;
+
 export function usePushNotifications() {
   const { user } = useAuth();
-  const [permission, setPermission] = useState(Notification.permission);
+  const [permission, setPermission] = useState(
+    supportsNotifications ? Notification.permission : "denied"
+  );
   const [subscribed, setSubscribed] = useState(false);
 
   useEffect(() => {
+    if (!supportsPush) return;
     checkSubscription();
   }, [user]);
 
   const checkSubscription = async () => {
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
-    const reg = await navigator.serviceWorker.ready;
-    const sub = await reg.pushManager.getSubscription();
-    setSubscribed(!!sub);
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      setSubscribed(!!sub);
+    } catch {
+      // silencioso
+    }
   };
 
-  const subscribe = async () => {
+  const requestAndSubscribe = async () => {
+    if (!supportsNotifications || !supportsPush) return "denied";
+    if (!VAPID_PUBLIC_KEY) {
+      console.warn("VITE_VAPID_PUBLIC_KEY no configurada");
+      return "denied";
+    }
+
     try {
+      const result = await Notification.requestPermission();
+      setPermission(result);
+      if (result !== "granted") return result;
+
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
       });
 
-      // Guardar subscripción en Supabase
-      await supabase.from("push_subscriptions").upsert({
-        user_id: user.id,
-        subscription: sub.toJSON(),
-      }, { onConflict: "user_id" });
+      await supabase.from("push_subscriptions").upsert(
+        { user_id: user.id, subscription: sub.toJSON() },
+        { onConflict: "user_id" }
+      );
 
       setSubscribed(true);
-      setPermission("granted");
-      return true;
+      return result;
     } catch (err) {
       console.error("Push subscribe error:", err);
-      return false;
+      return "denied";
     }
   };
 
-  const requestAndSubscribe = async () => {
-    const result = await Notification.requestPermission();
-    setPermission(result);
-    if (result === "granted") {
-      await subscribe();
-    }
-    return result;
-  };
-
-  return { permission, subscribed, requestAndSubscribe };
+  return { permission, subscribed, requestAndSubscribe, supported: supportsPush };
 }
 
 function urlBase64ToUint8Array(base64String) {
